@@ -249,22 +249,15 @@ if (keys.length) {
     keys.forEach((key) => {
         const model = key.replace('conversationHistory_', '');
         const history = JSON.parse(localStorage.getItem(key));
-        
-        // Buat bagian untuk setiap model
         const modelSection = document.createElement('div');
         modelSection.className = 'mb-4';
-        
-        // Membuat elemen judul yang bisa diklik
         const modelTitle = document.createElement('h3');
         modelTitle.className = 'mb-2';
         modelTitle.textContent = capitalizeModelName(model);
         modelTitle.style.cursor = 'pointer';
-        
-        // Membuat elemen riwayat percakapan yang disembunyikan secara default
         const historyList = document.createElement('ul');
         historyList.className = 'list-group';
-        historyList.style.display = 'none'; // Sembunyikan secara default
-        
+        historyList.style.display = 'none';        
         if (history.length) {
             history.forEach(entry => {
                 const messageItem = document.createElement('li');
@@ -275,14 +268,10 @@ if (keys.length) {
         } else {
             historyList.innerHTML = '<p class="text-muted">No conversations available for this model.</p>';
         }
-        
-        // Menambahkan event listener pada judul model untuk toggle riwayat percakapan
         modelTitle.addEventListener('click', () => {
             const isVisible = historyList.style.display === 'block';
             historyList.style.display = isVisible ? 'none' : 'block'; // Toggle visibility
         });
-        
-        // Menambahkan judul dan riwayat percakapan ke dalam modelSection
         modelSection.appendChild(modelTitle);
         modelSection.appendChild(historyList);
         allHistoryContent.appendChild(modelSection);

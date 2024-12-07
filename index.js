@@ -33,8 +33,9 @@ const upload = multer({ dest: 'uploads/' });
 
 // Middleware
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/set', express.static(path.join(__dirname, 'set')));
-app.use('/img', express.static(path.join(__dirname, 'img')));
+app.use('/styles.css', express.static(path.join(__dirname, 'public', 'styles.css')));
+app.use('/script.js', express.static(path.join(__dirname, 'public', 'script.js')));
+app.use('/icon.png', express.static(path.join(__dirname, 'public', 'icon.png')));
 app.use('/manifest.json', express.static(path.join(__dirname, 'public', 'manifest.json')));
 app.use(express.json());
 
