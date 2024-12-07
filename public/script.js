@@ -9,7 +9,14 @@ document.getElementById('selectedModelName').textContent = savedModelName;
 let conversationHistory = [];
 
 if (selectedSession === 'yes') {
-    conversationHistory = JSON.parse(localStorage.getItem(`conversationHistory_${selectedModel}`)) || [];
+    const historyData = localStorage.getItem(`conversationHistory_${selectedModel}`);
+    const cleanedData = historyData ? historyData.replace(/The page c.*/g, '') : '';
+    try {
+        conversationHistory = cleanedData ? JSON.parse(cleanedData) : [];
+    } catch (e) {
+        console.error('Error parsing JSON:', e);
+        conversationHistory = [];
+    }
 }
 
 const resultDiv = document.getElementById('result');
