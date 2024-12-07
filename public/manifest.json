@@ -1,0 +1,16 @@
+{
+    "name": "Hydro AI",
+    "short_name": "Hydro AI",
+    "description": "Just a Simple AI, Nothing More.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#ffffff",
+    "icons": [
+        {
+            "src": "/img/icon.png",
+            "sizes": "1080x1080",
+            "type": "image/png"
+        }
+    ]
+}

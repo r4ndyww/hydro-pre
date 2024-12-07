@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat History Tabs</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-light text-black p-4">
+
+    <div class="container">
+        <h1 class="mb-4">Chat History</h1>
+        <ul class="nav nav-tabs" id="historyTabs" role="tablist"></ul>
+        <div class="tab-content" id="historyTabContent"></div>
+    </div>
+
+    <script>
+        // Fetch all keys from localStorage related to conversation history
+        const keys = Object.keys(localStorage).filter(key => key.startsWith('conversationHistory_'));
+
+        // Elements for tabs and tab content
+        const historyTabs = document.getElementById('historyTabs');
+        const historyTabContent = document.getElementById('historyTabContent');
+
+        // Helper function to escape HTML
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Generate tabs and content
+        keys.forEach((key, index) => {
+            const model = key.replace('conversationHistory_', ''); // Extract model name
+            const history = JSON.parse(localStorage.getItem(key)); // Parse history
+            
+            // Create tab item
+            const tabItem = document.createElement('li');
+            tabItem.className = 'nav-item';
+            tabItem.innerHTML = `
+                <button class="nav-link ${index === 0 ? 'active' : ''}" id="tab-${model}" data-bs-toggle="tab" data-bs-target="#content-${model}" type="button" role="tab">
+                    ${model}
+                </button>
+            `;
+            historyTabs.appendChild(tabItem);
+
+            // Create tab content
+            const tabPane = document.createElement('div');
+            tabPane.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+            tabPane.id = `content-${model}`;
+            tabPane.role = 'tabpanel';
+            tabPane.innerHTML = history.length
+                ? `<ul class="list-group">${history.map(entry => `
+                    <li class="list-group-item">
+                        <strong>${entry.type === 'user' ? 'You:' : 'AI:'}</strong> 
+                        ${escapeHtml(entry.message)}
+                    </li>
+                `).join('')}</ul>`
+                : '<p class="text-muted">No conversations available for this model.</p>';
+            historyTabContent.appendChild(tabPane);
+        });
+
+        // Handle case when no chat history is available
+        if (keys.length === 0) {
+            const emptyMessage = document.createElement('p');
+            emptyMessage.className = 'text-center text-muted';
+            emptyMessage.textContent = 'No chat history found.';
+            historyTabs.innerHTML = '';
+            historyTabContent.innerHTML = '';
+            document.querySelector('.container').appendChild(emptyMessage);
+        }
+    </script>
+
+</body>
+</html>
