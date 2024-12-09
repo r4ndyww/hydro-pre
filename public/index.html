@@ -18,10 +18,9 @@
 
     <div id="mainContent" class="container">
         <div class="position-absolute top-0 end-0 p-10 d-flex align-items-center">
-            <a id="historyButton" class="material-icons txt" style="font-size: 30px; margin-left: 8px; cursor: pointer;">history</a>
-            <a id="installButton" class="material-icons txt" style="font-size: 25px; margin-left: 10px;">add_to_home_screen</a>
-            <a id="deleteButton" class="material-icons txt" style="font-size: 30px; margin-left: 10px;">delete_outline</a>
-            <a id="helpButton" class="material-icons txt" style="font-size: 30px; margin-left: 8px; cursor: pointer;">info_outline</a>
+            <a href="/create-ai" class="material-icons txt" style="font-size: 30px; margin-left: 10px;">add</a>
+            <a id="installButton" class="material-icons txt" style="font-size: 26px; margin-left: 6px;">add_to_home_screen</a>
+            <a id="infoButton" class="material-icons txt" style="font-size: 30px; margin-left: 8px; cursor: pointer;">info_outline</a>
         </div>
         <div class="position-absolute top-0 start-0 p-10 d-flex align-items-center">
             <a id="chooseModelBtn" data-bs-toggle="modal" data-bs-target="#modelModal" class="txt d-flex align-items-center justify-content-center">
@@ -32,7 +31,7 @@
         <div class="container text-left">
             <h1 class="mb-3">
                 <span class="text-5xl font-bold">Hydro AI.</span>
-                <span class="text-1xl">Pre Release</span>
+                <span class="text-1xl">by Ryn</span>
             </h1>
             <p class="mb-2">Just a Simple AI, Nothing More.</p>
             
@@ -93,7 +92,7 @@
                                 <h6 class="mb-2">Other Models</h6>
                                 <ul class="list-group mb-3">
                                     <li class="list-group-item model-item" supp="no" session="no" data-model="bing-ai">Bing AI (Based on Web Search)</li>
-                                    <li class="list-group-item model-item" supp="yes" session="yes" data-model="custom-prompt">Custom Prompt</li>
+                                    <!-- <li class="list-group-item model-item" supp="yes" session="yes" data-model="custom-prompt">Custom Prompt</li> -->
                                 </ul>
                             </div>
                         </div>
@@ -120,17 +119,7 @@
         </div>
     </div>
     
-    <div id="historyPage" class="slide-container">
-        <div class="position-absolute top-0 start-0 p-3 d-flex align-items-center">
-            <a id="backButtonn" class="material-icons txt" style="font-size: 30px;">arrow_back</a>
-        </div>
-        <div class="container">
-            <h1 class="mb-4" style="font-size: 30px;">Chat History</h1>
-            <div id="allHistoryContent"></div>
-        </div>
-    </div>
-    
-    <div id="helpPage" class="slide-container">
+    <div id="infoPage" class="slide-container">
         <div class="position-absolute top-0 start-0 p-3 d-flex align-items-center">
             <a id="backButton" class="material-icons txt" style="font-size: 30px;">arrow_back</a>
         </div>

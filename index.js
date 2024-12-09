@@ -1,43 +1,51 @@
 const express = require('express');
+const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
 const { DynamicRetrievalMode, GoogleGenerativeAI } = require('@google/generative-ai');
 const { GoogleAIFileManager } = require("@google/generative-ai/server");
 const axios = require('axios');
 const Groq = require('groq-sdk');
 const { HfInference } = require('@huggingface/inference');
-
 const app = express();
 const port = 3000;
 
-// Google Generative AI
+mongoose.connect('mongodb+srv://randyyuankurnianto20:Randyyyyy2009@rynn-archive.akfzq.mongodb.net/AI-Database?retryWrites=true&w=majority&appName=Rynn-Archive', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+});
+
+const aiSchema = new mongoose.Schema({
+    ainame: { type: String, required: true, unique: true },
+    systemInstruction: { type: String, required: true },
+});
+
+const AI = mongoose.model('AI', aiSchema);
+
 const apiKey = 'AIzaSyAJF_keuCClc3oDmOjDeB5wiRATggbHCak';
 const genAI = new GoogleGenerativeAI(apiKey);
 const fileManager = new GoogleAIFileManager(apiKey);
 
-// Mistral API configuration
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
 const MISTRAL_API_KEY = 'Cj3IYpkG01eLI46pIwxVMjtjjBqPGWOr';
 const mistralRegex = /(mistral|mixtral|pixtral|ministral|codestral)/i;
 
-// Konfigurasi Hugging Face
 const HF_API_KEY = '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';
-
 const hf = new HfInference(HF_API_KEY);
 
-// Groq API
 const groq = new Groq({ apiKey: "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" });
 
 const upload = multer({ dest: 'uploads/' });
 
-// Middleware
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/styles.css', express.static(path.join(__dirname, 'public', 'styles.css')));
-app.use('/script.js', express.static(path.join(__dirname, 'public', 'script.js')));
-app.use('/icon.png', express.static(path.join(__dirname, 'public', 'icon.png')));
-app.use('/manifest.json', express.static(path.join(__dirname, 'public', 'manifest.json')));
+app.use('/create-ai', express.static(path.join(__dirname, 'create-ai')));
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(cors());
+app.use(bodyParser.json());
 
 async function HuggingFace(prompt, model) {
     try {
@@ -72,7 +80,6 @@ async function GroqApi(query, model) {
         stream: false,
     });
 };
-
 
 async function MistralAI(messages, model) {
     try {
@@ -228,9 +235,104 @@ app.post('/api/process', upload.single('file'), async (req, res) => {
     }
 });
 
-// Routes
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/create-ai', (req, res) => {
+    res.sendFile(path.join(__dirname, 'create-ai', 'index.html'));
+});
+
+app.get('/created/:ainame', async (req, res) => {
+    const { ainame } = req.params;
+    if (!ainame) {
+        return res.status(404).sendFile(process.cwd() + "/public/404.html")
+    }
+    const ai = await AI.findOne({ ainame });
+    if (!ai) {
+        return res.status(404).sendFile(process.cwd() + "/public/404.html")
+    }
+    res.sendFile(path.join(__dirname, 'created-ai', 'index.html'));
+});
+
+app.post('/api/create-ai', async (req, res) => {
+    const { ainame, systemInstruction } = req.body;
+    if (!ainame || !systemInstruction) {
+        return res.status(400).json({ error: 'All data must be filled in.' });
+    }
+    try {
+        const newAI = new AI({ ainame, systemInstruction });
+        await newAI.save();
+        res.status(201).json({
+            endpoint: `/created/${ainame}`,
+        });
+    } catch (err) {
+        if (err.code === 11000) {
+            res.status(400).json({ error: 'AI name already exists, please choose another name.' });
+        } else {
+            res.status(500).json({ error: 'An error occurred on the server.' });
+        }
+    }
+});
+
+app.post('/api/:ainame', upload.single('file'), async (req, res) => {
+    const { ainame } = req.params;
+    const { prompt } = req.body;
+    const file = req.file;
+    try {
+        const ai = await AI.findOne({ ainame });
+        if (!ai) {
+            return res.status(404).json({ error: 'AI not found.' });
+        }
+        const systemInstruction = ai.systemInstruction;
+        let response;
+        if (file) {
+            const mime = file.mimetype;
+            const filePath = file.path;
+            if (/image/.test(mime) || /video/.test(mime) || /audio/.test(mime) || /application\/pdf/.test(mime)) {
+                const modelInstance = genAI.getGenerativeModel({
+                    model: 'gemini-1.5-flash',
+                    systemInstruction,
+                });
+                const uploadResponse = await fileManager.uploadFile(filePath, {
+                    mimeType: mime,
+                    displayName: `temp_file_${Date.now()}`,
+                });
+                fs.unlinkSync(filePath);
+                response = await modelInstance.generateContent([
+                    {
+                        fileData: {
+                            mimeType: uploadResponse.file.mimeType,
+                            fileUri: uploadResponse.file.uri,
+                        },
+                    },
+                    { text: prompt },
+                ]);
+                res.json({ result: response.response.text() });
+            } else {
+                res.status(400).json({ error: 'Unsupported file type' });
+            }
+        } else {
+            const modelInstance = genAI.getGenerativeModel({
+                model: 'gemini-1.5-flash',
+                systemInstruction,
+            });
+            response = await modelInstance.generateContent(prompt);
+            res.json({ result: response.response.text() });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'An error occurred on the server.' });
+    }
+});
+
+app.use((req, res, next) => {
+    res.status(404).sendFile(process.cwd() + "/public/404.html")
+});
+
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).sendFile(process.cwd() + "/public/500.html")
 });
 
 app.listen(port, () => {
