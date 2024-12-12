@@ -1,86 +1,48 @@
-let selectedModel = localStorage.getItem('selectedModel') || 'gemini-1.5-flash';
-let selectedSupp = localStorage.getItem('selectedSupp') || 'yes';
-let selectedSession = localStorage.getItem('selectedSession') || 'yes';
-let systemIntruction = localStorage.getItem('systemInstruction') || '';
-const savedModelName = localStorage.getItem('selectedModelName') || 'Gemini 1.5 Flash (Default)';
+let historyy = {
+    models: {},
+    selectedModel: 'hydroai-neptune-32B-V2.0',
+};
 
-document.getElementById('selectedModelName').textContent = savedModelName;
+function getModelHistory(model) {
+    if (!historyy.models[model]) {
+        historyy.models[model] = {
+            selectedSupp: 'no',
+            selectedSession: 'no',
+            systemInstruction: '',
+            savedModelName: document.querySelector(`[data-model="${model}"]`)?.textContent.trim() || model,
+            conversationHistory: [],
+            lastResult: '',
+        };
+    }
+    return historyy.models[model];
+}
 
-let conversationHistory = [];
+document.getElementById('selectedModelName').textContent = getModelHistory(history.selectedModel).savedModelName;
 
-if (selectedSession === 'yes') {
-    const historyData = localStorage.getItem(`conversationHistory_${selectedModel}`);
-    const cleanedData = historyData ? historyData.replace(/The page c.*/g, '') : '';
-    try {
-        conversationHistory = cleanedData ? JSON.parse(cleanedData) : [];
-    } catch (e) {
-        console.error('Error parsing JSON:', e);
-        conversationHistory = [];
+function switchModel(newModel) {
+    const previousModel = historyy.selectedModel;
+    historyy.selectedModel = newModel;
+    const modelData = getModelHistory(newModel);
+    document.getElementById('selectedModelName').textContent = modelData.savedModelName;
+    document.getElementById('systemInstruction').style.display = newModel === 'custom-prompt' ? 'block' : 'none';
+    document.getElementById('file').style.display = modelData.selectedSupp === 'yes' ? 'block' : 'none';
+    document.getElementById('result').innerHTML = modelData.lastResult || '';
+    if (modelData.selectedSession === 'yes') {
+        modelData.conversationHistory = [];
     }
 }
 
-const resultDiv = document.getElementById('result');
-const lastResult = localStorage.getItem(`lastResult_${selectedModel}`);
-if (lastResult && conversationHistory.length > 0) {
-    resultDiv.innerHTML = lastResult;
-} else {
-    resultDiv.innerHTML = '';
-}
-
-const systemDiv = document.getElementById('systemInstruction');
-if (systemIntruction) {
-    systemDiv.value = systemIntruction;
-} else {
-    systemDiv.value = '';
-}
-
-if (selectedModel === 'custom-prompt') {
-    document.getElementById('systemInstruction').style.display = 'block';
-} else {
-    document.getElementById('systemInstruction').style.display = 'none';
-}
-
 document.querySelectorAll('.model-item').forEach(item => {
-    item.addEventListener('click', function() {
-        const previousModel = selectedModel;
-        selectedModel = this.getAttribute('data-model');
-        selectedSupp = this.getAttribute('supp');
-        selectedSession = this.getAttribute('session');
-        const modelName = this.textContent.trim();
-        if (selectedModel === 'custom-prompt') {
-            document.getElementById('systemInstruction').style.display = 'block';
-        } else {
-            document.getElementById('systemInstruction').style.display = 'none';
-        }
-        document.getElementById('selectedModelName').textContent = modelName;
+    item.addEventListener('click', function () {
+        const newModel = this.getAttribute('data-model');
+        const modelData = getModelHistory(newModel);
+        modelData.selectedSupp = this.getAttribute('supp');
+        modelData.selectedSession = this.getAttribute('session');
+        switchModel(newModel);
         const modal = bootstrap.Modal.getInstance(document.getElementById('modelModal'));
         modal.hide();
-        localStorage.setItem(`lastResult_${previousModel}`, resultDiv.innerHTML || '');
-        const newLastResult = localStorage.getItem(`lastResult_${selectedModel}`) || '';
-        resultDiv.innerHTML = newLastResult;
-        localStorage.setItem('selectedModel', selectedModel);
-        localStorage.setItem('selectedSupp', selectedSupp);
-        localStorage.setItem('selectedSession', selectedSession);
-        localStorage.setItem('selectedModelName', modelName);
-        if (selectedSession === 'yes') {
-            conversationHistory = JSON.parse(localStorage.getItem(`conversationHistory_${selectedModel}`)) || [];
-        } else {
-            conversationHistory = [];
-        }
-        const fileInput = document.getElementById('file');
-        if (selectedSupp === 'no') {
-            fileInput.style.display = 'none';
-        } else {
-            fileInput.style.display = 'block';
-        }
     });
 });
-
-if (selectedSupp === 'no') {
-    document.getElementById('file').style.display = 'none';
-} else {
-    document.getElementById('file').style.display = 'block';
-}
 
 function escapeHtml(unsafe) {
     return unsafe
@@ -94,22 +56,23 @@ function escapeHtml(unsafe) {
 document.getElementById('aiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const prompt = document.getElementById('prompt').value.trim();
-    systemInstruction = document.getElementById('systemInstruction').value.trim();
     const fileInput = document.getElementById('file');
     const file = fileInput.files[0];
     document.getElementById('prompt').value = '';
     fileInput.value = '';
+    const selectedModel = historyy.selectedModel;
+    const modelData = getModelHistory(selectedModel);
+    modelData.systemInstruction = document.getElementById('systemInstruction').value.trim();
+    const resultDiv = document.getElementById('result');
     resultDiv.innerHTML = '<p class="text-gray-500">Processing...</p>';
-    if (selectedModel !== 'bing-ai') {
-        conversationHistory.push({ type: 'user', message: prompt });
-        localStorage.setItem(`conversationHistory_${selectedModel}`, JSON.stringify(conversationHistory));
+    if (modelData.selectedSession === 'yes') {
+        modelData.conversationHistory.push({ type: 'user', message: prompt });
     }
-    localStorage.setItem('systemInstruction', systemInstruction);
-    const fullHistory = conversationHistory.map(entry => entry.message).join('\n');
+    const fullHistory = modelData.conversationHistory.map(entry => entry.message).join('\n');
     const formData = new FormData();
-    formData.append('prompt', fullHistory + '\n' + prompt); 
+    formData.append('prompt', fullHistory + '\n' + prompt);
     formData.append('model', selectedModel);
-    formData.append('system', systemInstruction);
+    formData.append('system', modelData.systemInstruction);
     if (file) formData.append('file', file);
     try {
         const response = await fetch('/api/process', {
@@ -117,15 +80,16 @@ document.getElementById('aiForm').addEventListener('submit', async (e) => {
             body: formData,
         });
         const data = await response.json();
-        let historyy = data.result;
-        historyy = historyy.replace(/```/g, '');
-        historyy = historyy.replace(/\*\*/g, '');
-        historyy = historyy.replace(/\`/g, '');
-        historyy = historyy.replace(/\*/g, '');
+        let historyyy;
         if (data.result) {
             if (data.result.startsWith('data:image/') || data.result.startsWith('http')) {
                 resultDiv.innerHTML = `<img src="${data.result}" class="img-fluid">`;
             } else {
+                historyyy = data.result;
+                historyyy = historyyy.replace(/```/g, '');
+                historyyy = historyyy.replace(/\*\*/g, '');
+                historyyy = historyyy.replace(/\`/g, '');
+                historyyy = historyyy.replace(/\*/g, '');
                 let formattedText = escapeHtml(data.result);
                 formattedText = formattedText.replace(/```(.*?)\n([\s\S]*?)```/g, '<pre class="kodee"><code class="$1">$2</code></pre>');
                 formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -135,10 +99,9 @@ document.getElementById('aiForm').addEventListener('submit', async (e) => {
                 formattedText = `<ol>${formattedText}</ol>`;
                 resultDiv.innerHTML = formattedText;
             }
-            localStorage.setItem(`lastResult_${selectedModel}`, resultDiv.innerHTML);
-            if (selectedSession === 'yes') {
-                conversationHistory.push({ type: 'ai', message: historyy });
-                localStorage.setItem(`conversationHistory_${selectedModel}`, JSON.stringify(conversationHistory));
+            modelData.lastResult = resultDiv.innerHTML
+            if (modelData.selectedSession === 'yes') {
+                modelData.conversationHistory.push({ type: 'ai', message: historyyy });
             }
         } else {
             resultDiv.innerHTML = `<p class="text-danger">Error: ${data.error}</p>`;
@@ -168,64 +131,26 @@ window.addEventListener('beforeinstallprompt', (event) => {
     });
 });
 
-const deleteButton = document.getElementById('deleteButton');
-deleteButton.addEventListener('click', () => {
-    const confirmDelete = window.confirm("Are you sure you want to delete the chat history? This action cannot be undone.");
-    if (confirmDelete) {
-        localStorage.removeItem(`conversationHistory_${selectedModel}`);
-        localStorage.removeItem(`lastResult_${selectedModel}`);
-        localStorage.removeItem(`systemInstruction`);
-        conversationHistory = [];
-        resultDiv.innerHTML = '';
-        systemDiv.value = '';
-        alert("Chat history has been deleted.");
-    }
-});
-
 document.addEventListener('DOMContentLoaded', () => {
-    const helpPage = document.getElementById('helpPage');
+    const infoPage = document.getElementById('infoPage');
     const mainContent = document.getElementById('mainContent');
-    const helpButton = document.getElementById('helpButton');
+    const infoButton = document.getElementById('infoButton');
     const backButton = document.getElementById('backButton');
-    helpButton.addEventListener('click', (e) => {
+    infoButton.addEventListener('click', (e) => {
         e.preventDefault();
-        helpPage.classList.add('active');
-        history.pushState({ page: 'help' }, '', 'help');
+        infoPage.classList.add('active');
+        history.pushState({ page: 'info' }, '', 'info');
     });
     backButton.addEventListener('click', (e) => {
         e.preventDefault();
-        helpPage.classList.remove('active');
+        infoPage.classList.remove('active');
         history.back();
     });
     window.addEventListener('popstate', (event) => {
         if (event.state && event.state.page === 'help') {
-            helpPage.classList.add('active');
+            infoPage.classList.add('active');
         } else {
-            helpPage.classList.remove('active');
-        }
-    });
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-    const historyPage = document.getElementById('historyPage');
-    const mainContent = document.getElementById('mainContent');
-    const historyButton = document.getElementById('historyButton');
-    const backButtonn = document.getElementById('backButtonn');
-    historyButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        historyPage.classList.add('active');
-        history.pushState({ page: 'history' }, '', 'history');
-    });
-    backButtonn.addEventListener('click', (e) => {
-        e.preventDefault();
-        historyPage.classList.remove('active');
-        history.back();
-    });
-    window.addEventListener('popstate', (event) => {
-        if (event.state && event.state.page === 'help') {
-            historyPage.classList.add('active');
-        } else {
-            historyPage.classList.remove('active');
+            infoPage.classList.remove('active');
         }
     });
 });
@@ -242,47 +167,4 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-const keys = Object.keys(localStorage).filter(key => key.startsWith('conversationHistory_'));
-const allHistoryContent = document.getElementById('allHistoryContent');
-
-function capitalizeModelName(modelName) {
-    return modelName
-        .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ');
-}
-
-if (keys.length) {
-    keys.forEach((key) => {
-        const model = key.replace('conversationHistory_', '');
-        const history = JSON.parse(localStorage.getItem(key));
-        const modelSection = document.createElement('div');
-        modelSection.className = 'mb-4';
-        const modelTitle = document.createElement('h3');
-        modelTitle.className = 'mb-2';
-        modelTitle.textContent = capitalizeModelName(model);
-        modelTitle.style.cursor = 'pointer';
-        const historyList = document.createElement('ul');
-        historyList.className = 'list-group';
-        historyList.style.display = 'none';        
-        if (history.length) {
-            history.forEach(entry => {
-                const messageItem = document.createElement('li');
-                messageItem.className = `list-group-item ${entry.type === 'ai' ? 'ai-message' : 'user-message'}`;
-                messageItem.innerHTML = `<strong>${entry.type === 'ai' ? 'AI' : 'User'}:</strong> ${escapeHtml(entry.message)}`;
-                historyList.appendChild(messageItem);
-            });
-        } else {
-            historyList.innerHTML = '<p class="text-muted">No conversations available for this model.</p>';
-        }
-        modelTitle.addEventListener('click', () => {
-            const isVisible = historyList.style.display === 'block';
-            historyList.style.display = isVisible ? 'none' : 'block'; // Toggle visibility
-        });
-        modelSection.appendChild(modelTitle);
-        modelSection.appendChild(historyList);
-        allHistoryContent.appendChild(modelSection);
-    });
-} else {
-    allHistoryContent.innerHTML = '<p class="text-muted">No conversations available.</p>';
-}
+switchModel(historyy.selectedModel);
